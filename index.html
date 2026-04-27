@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AP Physics 2: Perfect Circuit Loop</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { margin: 0; background: #0a0a0a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #controls { background: #1a1a1a; padding: 25px; border-bottom: 3px solid #333; width: 100%; display: flex; justify-content: center; gap: 60px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); }
+        .stat { color: #00ffcc; font-weight: bold; font-family: monospace; font-size: 1.3em; text-shadow: 0 0 10px rgba(0,255,204,0.3); }
+        .slider-box { display: flex; flex-direction: column; align-items: flex-start; }
+        label { font-size: 0.85em; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+        input[type=range] { width: 150px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <div class="slider-box">
+            <label>EMF (Battery Voltage): <span id="vDisp" class="stat">10</span>V</label>
+            <input type="range" id="vSlider" min="1" max="20" value="10">
+        </div>
+        <div class="slider-box">
+            <label>Resistance: <span id="rDisp" class="stat">20</span>Ω</label>
+            <input type="range" id="rSlider" min="1" max="50" value="20">
+        </div>
+        <div style="align-self: center; border-left: 1px solid #444; padding-left: 40px;">
+            <span style="color:#888; font-size: 0.85em; text-transform: uppercase;">Circuit Current:</span><br>
+            <span id="iDisp" class="stat" style="font-size: 2em;">0.50</span> <span style="color:#00ffcc; font-size: 0.7em;">AMPS</span>
+        </div>
+    </div>
+
+    <div id="canvas-holder"></div>
+
+    <script>
+        let charges = [];
+        const x = 175; // Left wire x
+        const y = 120; // Top wire y
+        const w = 350; // Width
+        const h = 200; // Height
+        
+        // Path lengths for calculation
+        const seg1 = h/2;    // Battery to top-left
+        const seg2 = w;      // Top wire
+        const seg3 = h;      // Right wire
+        const seg4 = w;      // Bottom wire
+        const seg5 = h/2;    // Bottom-left to battery
+        const totalLength = seg1 + seg2 + seg3 + seg4 + seg5;
+
+        function setup() {
+            let cnv = createCanvas(700, 580);
+            cnv.parent('canvas-holder');
+            for(let i=0; i<45; i++) charges.push(new Charge(i * (totalLength/45)));
+        }
+
+        function draw() {
+            background(10);
+            let V = parseFloat(document.getElementById('vSlider').value);
+            let R = parseFloat(document.getElementById('rSlider').value);
+            let I = V / R;
+
+            document.getElementById('vDisp').innerText = V;
+            document.getElementById('rDisp').innerText = R;
+            document.getElementById('iDisp').innerText = I.toFixed(2);
+
+            // --- CONCEPTUAL LABELS ---
+            fill(100); noStroke(); textAlign(CENTER); textSize(14);
+            text("IDEAL CONDUCTOR (V is constant)", x + w/2, y - 60);
+
+            // --- DRAW WIRES WITH GLOW ---
+            strokeWeight(8); noFill();
+            
+            // High Potential (Red)
+            stroke(255, 50, 50, 40); line(x, y + h/2, x, y); line(x, y, x + w/2 - 40, y);
+            strokeWeight(3); stroke(255, 50, 50); 
+            line(x, y + h/2, x, y); line(x, y, x + w/2 - 40, y);
+            
+            // Low Potential (Blue)
+            strokeWeight(8); stroke(50, 100, 255, 40);
+            line(x + w/2 + 40, y, x + w, y); line(x + w, y, x + w, y + h); line(x + w, y + h, x, y + h); line(x, y + h, x, y + h/2);
+            strokeWeight(3); stroke(50, 100, 255);
+            line(x + w/2 + 40, y, x + w, y); line(x + w, y, x + w, y + h); line(x + w, y + h, x, y + h); line(x, y + h, x, y + h/2);
+
+            // --- SCHEMATIC SYMBOLS ---
+            stroke(255); strokeWeight(3);
+            // Battery Symbol
+            line(x-20, y+h/2-8, x+20, y+h/2-8); // + line
+            line(x-10, y+h/2+8, x+10, y+h/2+8); // - line
+            fill(255, 200, 0); noStroke(); text("+", x+35, y+h/2-5);
+            text("-", x+35, y+h/2+15);
+
+            // Resistor Symbol (Squiggle)
+            stroke(255); noFill();
+            let rx = x + w/2 - 40;
+            beginShape();
+            vertex(rx, y); vertex(rx+10, y-15); vertex(rx+20, y+15); vertex(rx+30, y-15);
+            vertex(rx+40, y+15); vertex(rx+50, y-15); vertex(rx+60, y+15); vertex(rx+70, y-15);
+            vertex(rx+80, y);
+            endShape();
+            fill(255); noStroke(); text("RESISTOR", x + w/2, y - 30);
+
+            // --- ANIMATE ELECTRONS ---
+            for(let c of charges) {
+                c.update(I);
+                c.display();
+            }
+
+            drawGraph(V);
+        }
+
+        function drawGraph(V) {
+            push(); translate(100, 500);
+            stroke(60); line(0,0, 500, 0); line(0,0, 0, -80); 
+            fill(100); noStroke(); textSize(11);
+            text("0V", -25, 5); text(V+"V", -25, -V*4);
+            stroke(255, 255, 0); strokeWeight(2); noFill();
+            beginShape();
+            vertex(0, -V*4); vertex(125, -V*4); vertex(125, 0); vertex(500, 0);    
+            endShape();
+            pop();
+        }
+
+        class Charge {
+            constructor(p) { this.prog = p; }
+            update(i) {
+                this.prog += i * 10; 
+                if(this.prog >= totalLength) this.prog = 0;
+
+                // Locked Pathing Logic
+                let p = this.prog;
+                if(p < seg1) { // Up to top-left corner
+                    this.x = x; this.y = (y + h/2) - p;
+                } else if (p < (seg1 + seg2)) { // Across top
+                    this.x = x + (p - seg1); this.y = y;
+                } else if (p < (seg1 + seg2 + seg3)) { // Down right
+                    this.x = x + w; this.y = y + (p - seg1 - seg2);
+                } else if (p < (seg1 + seg2 + seg3 + seg4)) { // Across bottom
+                    this.x = (x + w) - (p - seg1 - seg2 - seg3); this.y = y + h;
+                } else { // Back to battery
+                    this.x = x; this.y = (y + h) - (p - seg1 - seg2 - seg3 - seg4);
+                }
+            }
+            display() {
+                fill(0, 255, 255); noStroke();
+                ellipse(this.x, this.y, 6, 6);
+                fill(0, 255, 255, 80);
+                ellipse(this.x, this.y, 12, 12); // Glow
+            }
+        }
+    </script>
+</body>
+</html>
